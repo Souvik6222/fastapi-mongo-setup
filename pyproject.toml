@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastapi-mongo-setup"
+version = "0.3.1"
+description = "A CLI tool to auto-generate MongoDB connection boilerplates for FastAPI projects."
+authors = [
+    {name = "Developer Name", email = "developer@example.com"},
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "motor",
+    "python-dotenv",
+    "fastapi",
+    "pydantic-settings"
+]
+
+[project.urls]
+Homepage = "https://github.com/Souvik6222/fastapi-mongo-setup"
+Issues = "https://github.com/Souvik6222/fastapi-mongo-setup/issues"
+
+[project.scripts]
+mongo-setup = "mongo_setup.cli:init"
+
+[tool.setuptools.packages.find]
+where = ["src"]

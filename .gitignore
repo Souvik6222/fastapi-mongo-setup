@@ -1,0 +1,22 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Scaffolding Test Files (Generated when you tested the package natively)
+main.py
+requirements.txt
+src/config.py
+src/utils/
+src/tasks/
+
+# Python Packages & Build files
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
