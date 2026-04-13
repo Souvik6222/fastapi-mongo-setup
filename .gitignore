@@ -13,6 +13,7 @@ requirements.txt
 src/config.py
 src/utils/
 src/tasks/
+src/auth/
 
 # Python Packages & Build files
 build/
