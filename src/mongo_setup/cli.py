@@ -11,7 +11,7 @@ from rich.text import Text
 
 console = Console()
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 
 def check_for_updates():
@@ -801,8 +801,6 @@ def init():
         compose_file = pathlib.Path("docker-compose.yml")
         if not compose_file.exists():
             with open(compose_file, "w", encoding="utf-8") as f:
-                f.write('version: "3.8"\n')
-                f.write('\n')
                 f.write('services:\n')
                 f.write('  app:\n')
                 f.write('    build: .\n')
@@ -1102,7 +1100,10 @@ def init():
             except KeyboardInterrupt:
                 console.print("\n  [yellow]>[/yellow] Server stopped by user.")
             except Exception as e:
-                console.print(f"  [red]x[/red] Error starting server: {e}")
+                if include_docker:
+                    console.print("  [red]x[/red] Error starting Docker: Please ensure [bold]Docker Desktop[/bold] is running.")
+                else:
+                    console.print(f"  [red]x[/red] Error starting server: {e}")
 
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastapi-mongo-setup"
-version = "0.8.1"
+version = "0.8.2"
 description = "A CLI tool to auto-generate MongoDB connection boilerplates for FastAPI projects."
 authors = [
     {name = "Souvik", email = "wbjee.souvik@gmail.com"},
