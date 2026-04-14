@@ -3,9 +3,176 @@ import pathlib
 import argparse
 
 
+def to_pascal_case(snake_str):
+    """Convert snake_case to PascalCase. e.g. blog_posts -> BlogPosts"""
+    return "".join(word.capitalize() for word in snake_str.split("_"))
+
+
+def generate_resource(name):
+    """Generate a new API resource module with router, schemas, and service."""
+    src_dir = pathlib.Path("src")
+    resource_dir = src_dir / name
+    class_name = to_pascal_case(name)
+
+    if resource_dir.exists():
+        print(f"Error: src/{name}/ already exists. Choose a different name.")
+        return
+
+    resource_dir.mkdir(parents=True, exist_ok=True)
+    print(f"\nGenerating '{name}' resource module...")
+
+    # __init__.py
+    with open(resource_dir / "__init__.py", "w", encoding="utf-8") as f:
+        f.write("")
+
+    # schemas.py
+    schemas_file = resource_dir / "schemas.py"
+    with open(schemas_file, "w", encoding="utf-8") as f:
+        f.write('from pydantic import BaseModel, Field\n')
+        f.write('from typing import Optional\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'class {class_name}Create(BaseModel):\n')
+        f.write(f'    name: str = Field(..., example="Sample {class_name}")\n')
+        f.write(f'    description: Optional[str] = Field(None, example="A sample description")\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'class {class_name}Update(BaseModel):\n')
+        f.write(f'    name: Optional[str] = None\n')
+        f.write(f'    description: Optional[str] = None\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'class {class_name}Response({class_name}Create):\n')
+        f.write('    id: str\n')
+    print(f"  Created {schemas_file}")
+
+    # service.py
+    service_file = resource_dir / "service.py"
+    with open(service_file, "w", encoding="utf-8") as f:
+        f.write('from src.utils.db import db\n')
+        f.write('from src.utils.helpers import serialize_doc, serialize_docs\n')
+        f.write('from bson import ObjectId\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'class {class_name}Service:\n')
+        f.write('    @staticmethod\n')
+        f.write('    def get_collection():\n')
+        f.write(f'        return db.db["{name}"]\n')
+        f.write('\n')
+        f.write('    @staticmethod\n')
+        f.write(f'    async def create(data: dict) -> dict:\n')
+        f.write(f'        result = await {class_name}Service.get_collection().insert_one(data)\n')
+        f.write(f'        created = await {class_name}Service.get_collection().find_one({{"_id": result.inserted_id}})\n')
+        f.write('        return serialize_doc(created)\n')
+        f.write('\n')
+        f.write('    @staticmethod\n')
+        f.write(f'    async def get_all() -> list:\n')
+        f.write(f'        cursor = {class_name}Service.get_collection().find()\n')
+        f.write('        items = await cursor.to_list(length=100)\n')
+        f.write('        return serialize_docs(items)\n')
+        f.write('\n')
+        f.write('    @staticmethod\n')
+        f.write(f'    async def get_by_id(item_id: str):\n')
+        f.write(f'        item = await {class_name}Service.get_collection().find_one({{"_id": ObjectId(item_id)}})\n')
+        f.write('        return serialize_doc(item) if item else None\n')
+        f.write('\n')
+        f.write('    @staticmethod\n')
+        f.write(f'    async def update(item_id: str, data: dict) -> dict:\n')
+        f.write('        update_data = {k: v for k, v in data.items() if v is not None}\n')
+        f.write('        if not update_data:\n')
+        f.write('            return await {class_name}Service.get_by_id(item_id)\n'.format(class_name=class_name))
+        f.write(f'        await {class_name}Service.get_collection().update_one(\n')
+        f.write('            {"_id": ObjectId(item_id)}, {"$set": update_data}\n')
+        f.write('        )\n')
+        f.write(f'        return await {class_name}Service.get_by_id(item_id)\n')
+        f.write('\n')
+        f.write('    @staticmethod\n')
+        f.write(f'    async def delete(item_id: str) -> bool:\n')
+        f.write(f'        result = await {class_name}Service.get_collection().delete_one({{"_id": ObjectId(item_id)}})\n')
+        f.write('        return result.deleted_count > 0\n')
+    print(f"  Created {service_file}")
+
+    # router.py
+    router_file = resource_dir / "router.py"
+    with open(router_file, "w", encoding="utf-8") as f:
+        f.write('from fastapi import APIRouter, HTTPException\n')
+        f.write('from typing import List\n')
+        f.write(f'from src.{name}.schemas import {class_name}Create, {class_name}Update, {class_name}Response\n')
+        f.write(f'from src.{name}.service import {class_name}Service\n')
+        f.write('\n')
+        f.write(f'router = APIRouter(prefix="/{name}", tags=["{class_name}"])\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'@router.post("/", response_model={class_name}Response)\n')
+        f.write(f'async def create_{name}_item(item: {class_name}Create):\n')
+        f.write(f'    """Create a new {name} item."""\n')
+        f.write(f'    return await {class_name}Service.create(item.model_dump())\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'@router.get("/", response_model=List[{class_name}Response])\n')
+        f.write(f'async def get_all_{name}():\n')
+        f.write(f'    """Get all {name} items."""\n')
+        f.write(f'    return await {class_name}Service.get_all()\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'@router.get("/{{item_id}}", response_model={class_name}Response)\n')
+        f.write(f'async def get_{name}_by_id(item_id: str):\n')
+        f.write(f'    """Get a single {name} item by ID."""\n')
+        f.write(f'    item = await {class_name}Service.get_by_id(item_id)\n')
+        f.write('    if not item:\n')
+        f.write(f'        raise HTTPException(status_code=404, detail="{class_name} not found")\n')
+        f.write('    return item\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'@router.put("/{{item_id}}", response_model={class_name}Response)\n')
+        f.write(f'async def update_{name}_item(item_id: str, item: {class_name}Update):\n')
+        f.write(f'    """Update an existing {name} item."""\n')
+        f.write(f'    existing = await {class_name}Service.get_by_id(item_id)\n')
+        f.write('    if not existing:\n')
+        f.write(f'        raise HTTPException(status_code=404, detail="{class_name} not found")\n')
+        f.write(f'    return await {class_name}Service.update(item_id, item.model_dump())\n')
+        f.write('\n')
+        f.write(f'\n')
+        f.write(f'@router.delete("/{{item_id}}")\n')
+        f.write(f'async def delete_{name}_item(item_id: str):\n')
+        f.write(f'    """Delete a {name} item."""\n')
+        f.write(f'    success = await {class_name}Service.delete(item_id)\n')
+        f.write('    if not success:\n')
+        f.write(f'        raise HTTPException(status_code=404, detail="{class_name} not found")\n')
+        f.write(f'    return {{"message": "{class_name} deleted successfully"}}\n')
+    print(f"  Created {router_file}")
+
+    # Final instructions
+    print(f"\n" + "=" * 50)
+    print(f"  '{name}' resource generated!")
+    print("=" * 50)
+    print(f"\n  Add this to your main.py:")
+    print(f"    from src.{name}.router import router as {name}_router")
+    print(f"    app.include_router({name}_router)")
+    print(f"\n  Endpoints created:")
+    print(f"    POST   /{name}/           Create")
+    print(f"    GET    /{name}/           List all")
+    print(f"    GET    /{name}/{{id}}      Get by ID")
+    print(f"    PUT    /{name}/{{id}}      Update")
+    print(f"    DELETE /{name}/{{id}}      Delete")
+    print("=" * 50)
+
+
 def init():
     parser = argparse.ArgumentParser(
         description="Scaffold a production-ready FastAPI + MongoDB project"
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="setup",
+        help="Command to run: 'setup' (default) or 'resource <name>'"
+    )
+    parser.add_argument(
+        "resource_name",
+        nargs="?",
+        default=None,
+        help="Name of the resource to generate (used with 'resource' command)"
     )
     parser.add_argument(
         "--auth",
@@ -29,6 +196,18 @@ def init():
     )
     args = parser.parse_args()
 
+    # =============================================
+    # RESOURCE GENERATOR: mongo-setup resource posts
+    # =============================================
+    if args.command == "resource":
+        if not args.resource_name:
+            print("Error: Please provide a resource name.")
+            print("Usage: mongo-setup resource <name>")
+            print("Example: mongo-setup resource products")
+            return
+        generate_resource(args.resource_name)
+        return
+
     # --all shortcut enables everything
     if args.all:
         args.auth = True
@@ -38,6 +217,10 @@ def init():
     # =============================================
     # INTERACTIVE MODE: If no flags passed, ask user
     # =============================================
+    if args.command != "setup" and args.command != "resource":
+        # Treat unknown command as a flag-only run
+        pass
+
     if not args.auth and not args.docker and not args.test:
         print("\n" + "=" * 50)
         print("  Welcome to fastapi-mongo-setup!")

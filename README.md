@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Stop writing MongoDB boilerplate for FastAPI!**
-`fastapi-mongo-setup` is a powerful Python CLI tool that instantly scaffolds a professional, industry-standard FastAPI + MongoDB project — including optional **JWT authentication**, **Docker containerization**, and **test scaffolding**.
+`fastapi-mongo-setup` is a powerful CLI tool that scaffolds production-ready FastAPI + MongoDB projects — with optional **JWT auth**, **Docker**, **tests**, and a **resource generator** for creating new API modules instantly.
 
 ---
 
@@ -18,7 +18,6 @@ pip install fastapi-mongo-setup
 ## 🛠️ Usage
 
 ### Interactive Mode (Recommended)
-Just run the command and answer the prompts:
 ```bash
 mongo-setup
 ```
@@ -30,7 +29,6 @@ Include Test scaffolding? (y/N): y
 ```
 
 ### Flag Mode
-Use command-line flags directly:
 ```bash
 mongo-setup                # Base setup (DB + CRUD)
 mongo-setup --auth         # + JWT Authentication
@@ -38,6 +36,19 @@ mongo-setup --docker       # + Docker containerization
 mongo-setup --test         # + Pytest tests & Ruff linter
 mongo-setup --all          # Everything included
 ```
+
+### 🧩 Resource Generator (NEW!)
+Generate new API modules on the fly — no more copy-pasting boilerplate:
+```bash
+mongo-setup resource products
+mongo-setup resource blog_posts
+mongo-setup resource orders
+```
+
+Each generates a complete `src/<name>/` module with:
+- `router.py` — Full CRUD endpoints (POST, GET, GET by ID, PUT, DELETE)
+- `schemas.py` — Pydantic Create, Update, and Response models
+- `service.py` — MongoDB CRUD operations with serialization
 
 ---
 
@@ -58,35 +69,51 @@ your-project/
 │   ├── test_tasks.py       # Task endpoint tests
 │   └── test_auth.py        # Auth endpoint tests (with --auth)
 └── src/
-    ├── config.py           # Pydantic Settings configuration loader
+    ├── config.py           # Pydantic Settings configuration
     ├── utils/
     │   ├── db.py           # Async Motor connection manager
     │   └── helpers.py      # ObjectId serialization helpers
-    ├── tasks/
-    │   ├── router.py       # GET / POST / DELETE endpoints
-    │   ├── schemas.py      # Pydantic validation models
-    │   └── service.py      # Database CRUD logic
-    └── auth/               # 🔐 (with --auth)
-        ├── router.py       # /auth/register, /auth/login, /auth/me
-        ├── schemas.py      # UserCreate, UserLogin, Token models
-        ├── service.py      # Create user, find user by email
-        ├── dependencies.py # JWT creation & verification
-        └── utils.py        # Password hashing with bcrypt
+    ├── tasks/              # Default CRUD module
+    │   ├── router.py
+    │   ├── schemas.py
+    │   └── service.py
+    ├── auth/               # 🔐 (with --auth)
+    │   ├── router.py
+    │   ├── schemas.py
+    │   ├── service.py
+    │   ├── dependencies.py
+    │   └── utils.py
+    └── <your_resource>/    # 🧩 (with resource command)
+        ├── router.py       # Full CRUD (POST, GET, GET/:id, PUT, DELETE)
+        ├── schemas.py      # Create, Update, Response models
+        └── service.py      # MongoDB operations
 ```
 
 ---
 
-## 🚀 Running Your Generated Project
+## 🚀 Quick Start
 
-### With Docker (Recommended) 🐳
+### With Docker 🐳
 ```bash
+mongo-setup --all
 docker-compose up --build
 ```
 
 ### Without Docker
 ```bash
+mongo-setup --all
 pip install -r requirements.txt
 python main.py
+```
+
+### Add a New Resource
+```bash
+mongo-setup resource products
+```
+Then add to your `main.py`:
+```python
+from src.products.router import router as products_router
+app.include_router(products_router)
 ```
 
 Open `http://localhost:8000/docs` to see your Swagger UI!
@@ -101,26 +128,27 @@ Open `http://localhost:8000/docs` to see your Swagger UI!
 | POST   | `/auth/login`     | Get a JWT access token         | ❌            |
 | GET    | `/auth/me`        | Get current user's profile     | ✅ Bearer     |
 
+## 🧩 Resource Generator Endpoints
+
+Each `mongo-setup resource <name>` generates:
+
+| Method | Endpoint           | Description       |
+|--------|--------------------|-------------------|
+| POST   | `/<name>/`         | Create item       |
+| GET    | `/<name>/`         | List all items    |
+| GET    | `/<name>/{id}`     | Get by ID         |
+| PUT    | `/<name>/{id}`     | Update item       |
+| DELETE | `/<name>/{id}`     | Delete item       |
+
 ## 🧪 Testing (with `--test`)
 
-Run the pre-built test suite:
 ```bash
-pytest
+pytest                 # Run all tests
+ruff check .           # Lint code
+ruff format .          # Auto-format code
 ```
 
-The generated tests cover:
-- ✅ Root endpoint health check
-- ✅ Task CRUD operations (create, list, delete)
-- ✅ Auth registration & login flow (with `--auth`)
-- ✅ Unauthorized access protection (with `--auth`)
-
-### Linting
-```bash
-ruff check .       # Check for issues
-ruff format .      # Auto-format code
-```
-
-## 🐳 Docker Setup (with `--docker`)
+## 🐳 Docker (with `--docker`)
 
 | File                 | Purpose                                           |
 |----------------------|---------------------------------------------------|
@@ -129,10 +157,6 @@ ruff format .      # Auto-format code
 | `.dockerignore`      | Keeps the Docker image clean and small             |
 
 ---
-
-## 🏗 Why this exists?
-
-Setting up `Motor` (async MongoDB driver) with FastAPI typically requires repetitive boilerplate: connection managers, lifespans, ObjectId serialization, JWT auth plumbing, Docker configs, and test infrastructure. This tool does all of that for you in **one command**, providing a clean, modular architecture designed for scaling.
 
 ## 🤝 Contributing
 Found a bug or want to request a feature? Feel free to [open an issue](https://github.com/Souvik6222/fastapi-mongo-setup/issues) or submit a pull request!
