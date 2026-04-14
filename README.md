@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Stop writing MongoDB boilerplate for FastAPI!**
-`fastapi-mongo-setup` is a powerful CLI tool that scaffolds production-ready FastAPI + MongoDB projects — with optional **JWT auth**, **Docker**, **tests**, and a **resource generator** for creating new API modules instantly.
+`fastapi-mongo-setup` is a powerful CLI tool that scaffolds production-ready FastAPI + MongoDB projects — with optional **JWT auth**, **Docker**, **tests**, a **resource generator**, and **auto-start support**.
 
 ---
 
