@@ -17,6 +17,9 @@ src/auth/
 Dockerfile
 docker-compose.yml
 .dockerignore
+tests/
+pytest.ini
+.ruff.toml
 
 # Python Packages & Build files
 build/

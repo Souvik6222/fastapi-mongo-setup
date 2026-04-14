@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Stop writing MongoDB boilerplate for FastAPI!**
-`fastapi-mongo-setup` is a powerful Python CLI tool that instantly scaffolds a professional, industry-standard FastAPI + MongoDB project — including optional **JWT authentication** and **Docker containerization**.
+`fastapi-mongo-setup` is a powerful Python CLI tool that instantly scaffolds a professional, industry-standard FastAPI + MongoDB project — including optional **JWT authentication**, **Docker containerization**, and **test scaffolding**.
 
 ---
 
@@ -26,14 +26,16 @@ mongo-setup
 Welcome to fastapi-mongo-setup!
 Include JWT Authentication? (y/N): y
 Include Docker setup? (y/N): y
+Include Test scaffolding? (y/N): y
 ```
 
 ### Flag Mode
-Or use command-line flags directly:
+Use command-line flags directly:
 ```bash
 mongo-setup                # Base setup (DB + CRUD)
 mongo-setup --auth         # + JWT Authentication
 mongo-setup --docker       # + Docker containerization
+mongo-setup --test         # + Pytest tests & Ruff linter
 mongo-setup --all          # Everything included
 ```
 
@@ -49,6 +51,12 @@ your-project/
 ├── Dockerfile              # 🐳 (with --docker)
 ├── docker-compose.yml      # 🐳 (with --docker)
 ├── .dockerignore           # 🐳 (with --docker)
+├── pytest.ini              # 🧪 (with --test)
+├── .ruff.toml              # 🧹 (with --test)
+├── tests/                  # 🧪 (with --test)
+│   ├── conftest.py         # Async test client setup
+│   ├── test_tasks.py       # Task endpoint tests
+│   └── test_auth.py        # Auth endpoint tests (with --auth)
 └── src/
     ├── config.py           # Pydantic Settings configuration loader
     ├── utils/
@@ -74,7 +82,6 @@ your-project/
 ```bash
 docker-compose up --build
 ```
-This starts both your FastAPI app **and** a MongoDB instance automatically. No local MongoDB installation needed!
 
 ### Without Docker
 ```bash
@@ -94,19 +101,38 @@ Open `http://localhost:8000/docs` to see your Swagger UI!
 | POST   | `/auth/login`     | Get a JWT access token         | ❌            |
 | GET    | `/auth/me`        | Get current user's profile     | ✅ Bearer     |
 
+## 🧪 Testing (with `--test`)
+
+Run the pre-built test suite:
+```bash
+pytest
+```
+
+The generated tests cover:
+- ✅ Root endpoint health check
+- ✅ Task CRUD operations (create, list, delete)
+- ✅ Auth registration & login flow (with `--auth`)
+- ✅ Unauthorized access protection (with `--auth`)
+
+### Linting
+```bash
+ruff check .       # Check for issues
+ruff format .      # Auto-format code
+```
+
 ## 🐳 Docker Setup (with `--docker`)
 
 | File                 | Purpose                                           |
 |----------------------|---------------------------------------------------|
 | `Dockerfile`         | Python 3.11-slim image with your FastAPI app       |
 | `docker-compose.yml` | Orchestrates FastAPI + MongoDB 7 containers        |
-| `.dockerignore`      | Excludes unnecessary files from the Docker build   |
+| `.dockerignore`      | Keeps the Docker image clean and small             |
 
 ---
 
 ## 🏗 Why this exists?
 
-Setting up `Motor` (async MongoDB driver) with FastAPI typically requires repetitive boilerplate: connection managers, lifespans, ObjectId serialization, JWT auth plumbing, and Docker configs. This tool does all of that for you in **one command**, providing a clean, modular architecture designed for scaling.
+Setting up `Motor` (async MongoDB driver) with FastAPI typically requires repetitive boilerplate: connection managers, lifespans, ObjectId serialization, JWT auth plumbing, Docker configs, and test infrastructure. This tool does all of that for you in **one command**, providing a clean, modular architecture designed for scaling.
 
 ## 🤝 Contributing
 Found a bug or want to request a feature? Feel free to [open an issue](https://github.com/Souvik6222/fastapi-mongo-setup/issues) or submit a pull request!

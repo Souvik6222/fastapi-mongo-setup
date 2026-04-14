@@ -18,9 +18,14 @@ def init():
         help="Include Dockerfile, docker-compose.yml, and .dockerignore"
     )
     parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Include pytest test scaffolding and ruff linter config"
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
-        help="Include all optional features (auth + docker)"
+        help="Include all optional features (auth + docker + test)"
     )
     args = parser.parse_args()
 
@@ -28,11 +33,12 @@ def init():
     if args.all:
         args.auth = True
         args.docker = True
+        args.test = True
 
     # =============================================
     # INTERACTIVE MODE: If no flags passed, ask user
     # =============================================
-    if not args.auth and not args.docker:
+    if not args.auth and not args.docker and not args.test:
         print("\n" + "=" * 50)
         print("  Welcome to fastapi-mongo-setup!")
         print("  Let's configure your project.")
@@ -43,16 +49,22 @@ def init():
 
         docker_answer = input("Include Docker setup? (y/N): ").strip().lower()
         args.docker = docker_answer in ("y", "yes")
+
+        test_answer = input("Include Test scaffolding? (y/N): ").strip().lower()
+        args.test = test_answer in ("y", "yes")
         print()
 
     include_auth = args.auth
     include_docker = args.docker
+    include_test = args.test
 
     print("Initializing full-fledged MongoDB FastAPI project structure...")
     if include_auth:
         print("  [+] JWT Authentication module")
     if include_docker:
         print("  [+] Docker containerization files")
+    if include_test:
+        print("  [+] Pytest test scaffolding & Ruff linter")
 
     # Base directories
     src_dir = pathlib.Path("src")
@@ -620,6 +632,193 @@ def init():
         print("\nDocker setup complete!")
 
     # =============================================
+    # TEST MODULE (only when --test is passed)
+    # =============================================
+    if include_test:
+        print("\n--- Setting up Test scaffolding & Linter ---")
+        tests_dir = pathlib.Path("tests")
+        tests_dir.mkdir(parents=True, exist_ok=True)
+
+        # =============================================
+        # T1. pytest.ini
+        # =============================================
+        pytest_ini = pathlib.Path("pytest.ini")
+        if not pytest_ini.exists():
+            with open(pytest_ini, "w", encoding="utf-8") as f:
+                f.write('[pytest]\n')
+                f.write('asyncio_mode = auto\n')
+            print(f"Created {pytest_ini}")
+        else:
+            print(f"{pytest_ini} already exists, skipping.")
+
+        # =============================================
+        # T2. tests/__init__.py
+        # =============================================
+        tests_init = tests_dir / "__init__.py"
+        if not tests_init.exists():
+            with open(tests_init, "w", encoding="utf-8") as f:
+                f.write("")
+
+        # =============================================
+        # T3. tests/conftest.py (Test Client Setup)
+        # =============================================
+        conftest_file = tests_dir / "conftest.py"
+        if not conftest_file.exists():
+            with open(conftest_file, "w", encoding="utf-8") as f:
+                f.write('import pytest\n')
+                f.write('from httpx import AsyncClient, ASGITransport\n')
+                f.write('from main import app\n')
+                f.write('\n')
+                f.write('\n')
+                f.write('@pytest.fixture\n')
+                f.write('async def client():\n')
+                f.write('    """Create an async test client for the FastAPI app."""\n')
+                f.write('    transport = ASGITransport(app=app)\n')
+                f.write('    async with AsyncClient(transport=transport, base_url="http://test") as ac:\n')
+                f.write('        yield ac\n')
+            print(f"Created {conftest_file}")
+        else:
+            print(f"{conftest_file} already exists, skipping.")
+
+        # =============================================
+        # T4. tests/test_tasks.py
+        # =============================================
+        test_tasks = tests_dir / "test_tasks.py"
+        if not test_tasks.exists():
+            with open(test_tasks, "w", encoding="utf-8") as f:
+                f.write('import pytest\n')
+                f.write('\n')
+                f.write('\n')
+                f.write('async def test_root(client):\n')
+                f.write('    """Test that the root endpoint returns a welcome message."""\n')
+                f.write('    response = await client.get("/")\n')
+                f.write('    assert response.status_code == 200\n')
+                f.write('    data = response.json()\n')
+                f.write('    assert "message" in data\n')
+                f.write('\n')
+                f.write('\n')
+                f.write('async def test_get_tasks(client):\n')
+                f.write('    """Test that GET /tasks/ returns a list."""\n')
+                f.write('    response = await client.get("/tasks/")\n')
+                f.write('    assert response.status_code == 200\n')
+                f.write('    assert isinstance(response.json(), list)\n')
+                f.write('\n')
+                f.write('\n')
+                f.write('async def test_create_task(client):\n')
+                f.write('    """Test creating a new task via POST /tasks/."""\n')
+                f.write('    task_data = {"title": "Test Task", "description": "A test task", "completed": False}\n')
+                f.write('    response = await client.post("/tasks/", json=task_data)\n')
+                f.write('    assert response.status_code == 200\n')
+                f.write('    data = response.json()\n')
+                f.write('    assert data["title"] == "Test Task"\n')
+                f.write('    assert "id" in data\n')
+                f.write('\n')
+                f.write('\n')
+                f.write('async def test_delete_task_not_found(client):\n')
+                f.write('    """Test deleting a task that does not exist returns 404."""\n')
+                f.write('    response = await client.delete("/tasks/000000000000000000000000")\n')
+                f.write('    assert response.status_code == 404\n')
+            print(f"Created {test_tasks}")
+        else:
+            print(f"{test_tasks} already exists, skipping.")
+
+        # =============================================
+        # T5. tests/test_auth.py (only with --auth)
+        # =============================================
+        if include_auth:
+            test_auth = tests_dir / "test_auth.py"
+            if not test_auth.exists():
+                with open(test_auth, "w", encoding="utf-8") as f:
+                    f.write('import pytest\n')
+                    f.write('\n')
+                    f.write('\n')
+                    f.write('async def test_register(client):\n')
+                    f.write('    """Test registering a new user account."""\n')
+                    f.write('    user_data = {"name": "Test User", "email": "test@example.com", "password": "secret123"}\n')
+                    f.write('    response = await client.post("/auth/register", json=user_data)\n')
+                    f.write('    assert response.status_code == 200\n')
+                    f.write('    data = response.json()\n')
+                    f.write('    assert data["email"] == "test@example.com"\n')
+                    f.write('    assert "id" in data\n')
+                    f.write('\n')
+                    f.write('\n')
+                    f.write('async def test_register_duplicate_email(client):\n')
+                    f.write('    """Test that registering with an existing email fails."""\n')
+                    f.write('    user_data = {"name": "Test User", "email": "test@example.com", "password": "secret123"}\n')
+                    f.write('    response = await client.post("/auth/register", json=user_data)\n')
+                    f.write('    assert response.status_code == 400\n')
+                    f.write('\n')
+                    f.write('\n')
+                    f.write('async def test_login(client):\n')
+                    f.write('    """Test logging in with valid credentials."""\n')
+                    f.write('    user_data = {"email": "test@example.com", "password": "secret123"}\n')
+                    f.write('    response = await client.post("/auth/login", json=user_data)\n')
+                    f.write('    assert response.status_code == 200\n')
+                    f.write('    data = response.json()\n')
+                    f.write('    assert "access_token" in data\n')
+                    f.write('    assert data["token_type"] == "bearer"\n')
+                    f.write('\n')
+                    f.write('\n')
+                    f.write('async def test_login_wrong_password(client):\n')
+                    f.write('    """Test that login fails with wrong password."""\n')
+                    f.write('    user_data = {"email": "test@example.com", "password": "wrongpassword"}\n')
+                    f.write('    response = await client.post("/auth/login", json=user_data)\n')
+                    f.write('    assert response.status_code == 401\n')
+                    f.write('\n')
+                    f.write('\n')
+                    f.write('async def test_me_unauthorized(client):\n')
+                    f.write('    """Test that /auth/me returns 401 without a token."""\n')
+                    f.write('    response = await client.get("/auth/me")\n')
+                    f.write('    assert response.status_code == 401\n')
+                print(f"Created {test_auth}")
+            else:
+                print(f"{test_auth} already exists, skipping.")
+
+        # =============================================
+        # T6. .ruff.toml (Linter Configuration)
+        # =============================================
+        ruff_config = pathlib.Path(".ruff.toml")
+        if not ruff_config.exists():
+            with open(ruff_config, "w", encoding="utf-8") as f:
+                f.write('# Ruff linter configuration\n')
+                f.write('# Run: pip install ruff && ruff check .\n')
+                f.write('\n')
+                f.write('[lint]\n')
+                f.write('select = ["E", "F", "W", "I"]\n')
+                f.write('ignore = ["E501"]\n')
+                f.write('\n')
+                f.write('[format]\n')
+                f.write('quote-style = "double"\n')
+                f.write('indent-style = "space"\n')
+            print(f"Created {ruff_config}")
+        else:
+            print(f"{ruff_config} already exists, skipping.")
+
+        # Add test deps to requirements.txt
+        req_file = pathlib.Path("requirements.txt")
+        req_content = ""
+        if req_file.exists():
+            with open(req_file, "r", encoding="utf-8") as f:
+                req_content = f.read()
+
+        test_deps = ["pytest", "pytest-asyncio", "httpx", "ruff"]
+        test_deps_to_add = []
+        for dep in test_deps:
+            if dep not in req_content:
+                test_deps_to_add.append(dep)
+
+        if test_deps_to_add:
+            with open(req_file, "a", encoding="utf-8") as f:
+                if req_content and not req_content.endswith("\n"):
+                    f.write("\n")
+                f.write("# Testing & Linting\n")
+                for dep in test_deps_to_add:
+                    f.write(dep + "\n")
+            print(f"Updated {req_file} with test dependencies.")
+
+        print("\nTest scaffolding & linter setup complete!")
+
+    # =============================================
     # FINAL SUMMARY
     # =============================================
     print("\n" + "=" * 50)
@@ -642,6 +841,14 @@ def init():
         print("    POST /auth/register")
         print("    POST /auth/login")
         print("    GET  /auth/me (protected)")
+        print()
+
+    if include_test:
+        print("  Run tests:")
+        print("    pytest")
+        print()
+        print("  Run linter:")
+        print("    ruff check .")
         print()
 
     print("  Swagger docs: http://localhost:8000/docs")
