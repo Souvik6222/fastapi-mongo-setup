@@ -12,13 +12,47 @@ def init():
         action="store_true",
         help="Include a full JWT authentication module (register, login, protected routes)"
     )
+    parser.add_argument(
+        "--docker",
+        action="store_true",
+        help="Include Dockerfile, docker-compose.yml, and .dockerignore"
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Include all optional features (auth + docker)"
+    )
     args = parser.parse_args()
 
+    # --all shortcut enables everything
+    if args.all:
+        args.auth = True
+        args.docker = True
+
+    # =============================================
+    # INTERACTIVE MODE: If no flags passed, ask user
+    # =============================================
+    if not args.auth and not args.docker:
+        print("\n" + "=" * 50)
+        print("  Welcome to fastapi-mongo-setup!")
+        print("  Let's configure your project.")
+        print("=" * 50 + "\n")
+
+        auth_answer = input("Include JWT Authentication? (y/N): ").strip().lower()
+        args.auth = auth_answer in ("y", "yes")
+
+        docker_answer = input("Include Docker setup? (y/N): ").strip().lower()
+        args.docker = docker_answer in ("y", "yes")
+        print()
+
     include_auth = args.auth
+    include_docker = args.docker
 
     print("Initializing full-fledged MongoDB FastAPI project structure...")
     if include_auth:
-        print("Auth flag detected! Will also scaffold JWT authentication module.")
+        print("  [+] JWT Authentication module")
+    if include_docker:
+        print("  [+] Docker containerization files")
 
     # Base directories
     src_dir = pathlib.Path("src")
@@ -34,33 +68,21 @@ def init():
     config_file = src_dir / "config.py"
     if not config_file.exists():
         with open(config_file, "w", encoding="utf-8") as f:
+            f.write('from pydantic_settings import BaseSettings\n')
+            f.write('\n')
+            f.write('class Settings(BaseSettings):\n')
+            f.write('    mongodb_url: str = "mongodb://localhost:27017"\n')
+            f.write('    database_name: str = "fastapi_db"\n')
+            f.write('    port: int = 8000\n')
             if include_auth:
-                f.write('from pydantic_settings import BaseSettings\n')
-                f.write('\n')
-                f.write('class Settings(BaseSettings):\n')
-                f.write('    mongodb_url: str = "mongodb://localhost:27017"\n')
-                f.write('    database_name: str = "fastapi_db"\n')
-                f.write('    port: int = 8000\n')
                 f.write('    secret_key: str = "your-super-secret-key-change-this"\n')
                 f.write('    algorithm: str = "HS256"\n')
                 f.write('    access_token_expire_minutes: int = 30\n')
-                f.write('\n')
-                f.write('    class Config:\n')
-                f.write('        env_file = ".env"\n')
-                f.write('\n')
-                f.write('settings = Settings()\n')
-            else:
-                f.write('from pydantic_settings import BaseSettings\n')
-                f.write('\n')
-                f.write('class Settings(BaseSettings):\n')
-                f.write('    mongodb_url: str = "mongodb://localhost:27017"\n')
-                f.write('    database_name: str = "fastapi_db"\n')
-                f.write('    port: int = 8000\n')
-                f.write('\n')
-                f.write('    class Config:\n')
-                f.write('        env_file = ".env"\n')
-                f.write('\n')
-                f.write('settings = Settings()\n')
+            f.write('\n')
+            f.write('    class Config:\n')
+            f.write('        env_file = ".env"\n')
+            f.write('\n')
+            f.write('settings = Settings()\n')
         print(f"Created {config_file}")
     else:
         print(f"{config_file} already exists, skipping.")
@@ -262,7 +284,10 @@ def init():
         if env_content and not env_content.endswith("\n"):
             f.write("\n")
         if "MONGODB_URL" not in env_content:
-            f.write("MONGODB_URL=mongodb://localhost:27017\n")
+            if include_docker:
+                f.write("MONGODB_URL=mongodb://mongo:27017\n")
+            else:
+                f.write("MONGODB_URL=mongodb://localhost:27017\n")
         if "DATABASE_NAME" not in env_content:
             f.write("DATABASE_NAME=fastapi_db\n")
         if "PORT" not in env_content:
@@ -494,14 +519,132 @@ def init():
         print("\nJWT Authentication module setup complete!")
 
     # =============================================
+    # DOCKER MODULE (only when --docker is passed)
+    # =============================================
+    if include_docker:
+        print("\n--- Setting up Docker containerization ---")
+
+        # =============================================
+        # D1. Dockerfile
+        # =============================================
+        dockerfile = pathlib.Path("Dockerfile")
+        if not dockerfile.exists():
+            with open(dockerfile, "w", encoding="utf-8") as f:
+                f.write('# ---- Base Python Image ----\n')
+                f.write('FROM python:3.11-slim\n')
+                f.write('\n')
+                f.write('# Set environment variables\n')
+                f.write('ENV PYTHONDONTWRITEBYTECODE=1\n')
+                f.write('ENV PYTHONUNBUFFERED=1\n')
+                f.write('\n')
+                f.write('# Set work directory\n')
+                f.write('WORKDIR /app\n')
+                f.write('\n')
+                f.write('# Install dependencies\n')
+                f.write('COPY requirements.txt .\n')
+                f.write('RUN pip install --no-cache-dir --upgrade pip && \\\n')
+                f.write('    pip install --no-cache-dir -r requirements.txt\n')
+                f.write('\n')
+                f.write('# Copy project files\n')
+                f.write('COPY . .\n')
+                f.write('\n')
+                f.write('# Expose the port\n')
+                f.write('EXPOSE 8000\n')
+                f.write('\n')
+                f.write('# Run the application\n')
+                f.write('CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]\n')
+            print(f"Created {dockerfile}")
+        else:
+            print(f"{dockerfile} already exists, skipping.")
+
+        # =============================================
+        # D2. docker-compose.yml
+        # =============================================
+        compose_file = pathlib.Path("docker-compose.yml")
+        if not compose_file.exists():
+            with open(compose_file, "w", encoding="utf-8") as f:
+                f.write('version: "3.8"\n')
+                f.write('\n')
+                f.write('services:\n')
+                f.write('  app:\n')
+                f.write('    build: .\n')
+                f.write('    container_name: fastapi_app\n')
+                f.write('    ports:\n')
+                f.write('      - "8000:8000"\n')
+                f.write('    depends_on:\n')
+                f.write('      - mongo\n')
+                f.write('    environment:\n')
+                f.write('      - MONGODB_URL=mongodb://mongo:27017\n')
+                f.write('      - DATABASE_NAME=fastapi_db\n')
+                f.write('    volumes:\n')
+                f.write('      - .:/app\n')
+                f.write('    restart: always\n')
+                f.write('\n')
+                f.write('  mongo:\n')
+                f.write('    image: mongo:7\n')
+                f.write('    container_name: mongodb\n')
+                f.write('    ports:\n')
+                f.write('      - "27017:27017"\n')
+                f.write('    volumes:\n')
+                f.write('      - mongo_data:/data/db\n')
+                f.write('    restart: always\n')
+                f.write('\n')
+                f.write('volumes:\n')
+                f.write('  mongo_data:\n')
+            print(f"Created {compose_file}")
+        else:
+            print(f"{compose_file} already exists, skipping.")
+
+        # =============================================
+        # D3. .dockerignore
+        # =============================================
+        dockerignore = pathlib.Path(".dockerignore")
+        if not dockerignore.exists():
+            with open(dockerignore, "w", encoding="utf-8") as f:
+                f.write('__pycache__\n')
+                f.write('*.pyc\n')
+                f.write('*.pyo\n')
+                f.write('.env\n')
+                f.write('.git\n')
+                f.write('.gitignore\n')
+                f.write('venv\n')
+                f.write('.venv\n')
+                f.write('*.egg-info\n')
+                f.write('dist\n')
+                f.write('build\n')
+                f.write('README.md\n')
+            print(f"Created {dockerignore}")
+        else:
+            print(f"{dockerignore} already exists, skipping.")
+
+        print("\nDocker setup complete!")
+
+    # =============================================
     # FINAL SUMMARY
     # =============================================
     print("\n" + "=" * 50)
-    print("Full FastAPI + MongoDB structure setup is complete!")
+    print("  Project setup is complete!")
+    print("=" * 50)
+    print()
+
+    if include_docker:
+        print("  Start with Docker (recommended):")
+        print("    docker-compose up --build")
+        print()
+        print("  Or run locally:")
+
+    print("    pip install -r requirements.txt")
+    print("    python main.py")
+    print()
+
     if include_auth:
-        print("Auth module included! Endpoints: /auth/register, /auth/login, /auth/me")
-    print("Run your server with: python main.py")
-    print("Visit Swagger docs at: http://localhost:8000/docs")
+        print("  Auth endpoints:")
+        print("    POST /auth/register")
+        print("    POST /auth/login")
+        print("    GET  /auth/me (protected)")
+        print()
+
+    print("  Swagger docs: http://localhost:8000/docs")
     print("=" * 50)
 
 
