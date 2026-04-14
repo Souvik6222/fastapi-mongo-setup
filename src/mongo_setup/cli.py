@@ -1,6 +1,34 @@
 import os
 import pathlib
 import argparse
+import json
+import urllib.request
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
+console = Console()
+
+__version__ = "0.8.0"
+
+
+def check_for_updates():
+    """Check PyPI for a newer version of the package."""
+    try:
+        url = "https://pypi.org/pypi/fastapi-mongo-setup/json"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode())
+            latest = data["info"]["version"]
+            if latest != __version__:
+                console.print(
+                    f"  [yellow]â¬† Update available:[/yellow] {__version__} â†’ "
+                    f"[green]{latest}[/green]  "
+                    f"Run: [cyan]pip install --upgrade fastapi-mongo-setup[/cyan]\n"
+                )
+    except Exception:
+        pass
 
 
 def to_pascal_case(snake_str):
@@ -15,11 +43,11 @@ def generate_resource(name):
     class_name = to_pascal_case(name)
 
     if resource_dir.exists():
-        print(f"Error: src/{name}/ already exists. Choose a different name.")
+        console.print(f"  [red]âœ—[/red] Error: src/{name}/ already exists. Choose a different name.")
         return
 
     resource_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\nGenerating '{name}' resource module...")
+    console.print(f"\n  [bold cyan]â–¸ Generating '{name}' resource module...[/bold cyan]")
 
     # __init__.py
     with open(resource_dir / "__init__.py", "w", encoding="utf-8") as f:
@@ -44,7 +72,7 @@ def generate_resource(name):
         f.write(f'\n')
         f.write(f'class {class_name}Response({class_name}Create):\n')
         f.write('    id: str\n')
-    print(f"  Created {schemas_file}")
+    console.print(f"  [green]âœ“[/green] Created {schemas_file}")
 
     # service.py
     service_file = resource_dir / "service.py"
@@ -90,7 +118,7 @@ def generate_resource(name):
         f.write(f'    async def delete(item_id: str) -> bool:\n')
         f.write(f'        result = await {class_name}Service.get_collection().delete_one({{"_id": ObjectId(item_id)}})\n')
         f.write('        return result.deleted_count > 0\n')
-    print(f"  Created {service_file}")
+    console.print(f"  [green]âœ“[/green] Created {service_file}")
 
     # router.py
     router_file = resource_dir / "router.py"
@@ -140,22 +168,23 @@ def generate_resource(name):
         f.write('    if not success:\n')
         f.write(f'        raise HTTPException(status_code=404, detail="{class_name} not found")\n')
         f.write(f'    return {{"message": "{class_name} deleted successfully"}}\n')
-    print(f"  Created {router_file}")
+    console.print(f"  [green]âœ“[/green] Created {router_file}")
 
     # Final instructions
-    print(f"\n" + "=" * 50)
-    print(f"  '{name}' resource generated!")
-    print("=" * 50)
-    print(f"\n  Add this to your main.py:")
-    print(f"    from src.{name}.router import router as {name}_router")
-    print(f"    app.include_router({name}_router)")
-    print(f"\n  Endpoints created:")
-    print(f"    POST   /{name}/           Create")
-    print(f"    GET    /{name}/           List all")
-    print(f"    GET    /{name}/{{id}}      Get by ID")
-    print(f"    PUT    /{name}/{{id}}      Update")
-    print(f"    DELETE /{name}/{{id}}      Delete")
-    print("=" * 50)
+    table = Table(title=f"ðŸ§© Endpoints for /{name}", show_header=True, header_style="bold cyan")
+    table.add_column("Method", style="green", width=8)
+    table.add_column("Endpoint", style="white")
+    table.add_column("Action", style="dim")
+    table.add_row("POST", f"/{name}/", "Create")
+    table.add_row("GET", f"/{name}/", "List all")
+    table.add_row("GET", f"/{name}/{{id}}", "Get by ID")
+    table.add_row("PUT", f"/{name}/{{id}}", "Update")
+    table.add_row("DELETE", f"/{name}/{{id}}", "Delete")
+    console.print()
+    console.print(table)
+
+    add_code = f"from src.{name}.router import router as {name}_router\napp.include_router({name}_router)"
+    console.print(Panel(add_code, title="[yellow]Add to main.py[/yellow]", border_style="yellow"))
 
 
 def init():
@@ -196,14 +225,17 @@ def init():
     )
     args = parser.parse_args()
 
+    # Check for updates
+    check_for_updates()
+
     # =============================================
     # RESOURCE GENERATOR: mongo-setup resource posts
     # =============================================
     if args.command == "resource":
         if not args.resource_name:
-            print("Error: Please provide a resource name.")
-            print("Usage: mongo-setup resource <name>")
-            print("Example: mongo-setup resource products")
+            console.print("  [red]âœ—[/red] Please provide a resource name.")
+            console.print("  Usage: [cyan]mongo-setup resource <name>[/cyan]")
+            console.print("  Example: [cyan]mongo-setup resource products[/cyan]")
             return
         generate_resource(args.resource_name)
         return
@@ -222,32 +254,42 @@ def init():
         pass
 
     if not args.auth and not args.docker and not args.test:
-        print("\n" + "=" * 50)
-        print("  Welcome to fastapi-mongo-setup!")
-        print("  Let's configure your project.")
-        print("=" * 50 + "\n")
+        console.print(Panel(
+            "[bold white]Let's configure your project.[/bold white]",
+            title="[bold cyan]ðŸš€ fastapi-mongo-setup[/bold cyan]",
+            border_style="cyan",
+            padding=(1, 2)
+        ))
+        console.print()
 
-        auth_answer = input("Include JWT Authentication? (y/N): ").strip().lower()
+        auth_answer = console.input("  ðŸ” Include JWT Authentication? [dim](y/N)[/dim]: ").strip().lower()
         args.auth = auth_answer in ("y", "yes")
 
-        docker_answer = input("Include Docker setup? (y/N): ").strip().lower()
+        docker_answer = console.input("  ðŸ³ Include Docker setup? [dim](y/N)[/dim]: ").strip().lower()
         args.docker = docker_answer in ("y", "yes")
 
-        test_answer = input("Include Test scaffolding? (y/N): ").strip().lower()
+        test_answer = console.input("  ðŸ§ª Include Test scaffolding? [dim](y/N)[/dim]: ").strip().lower()
         args.test = test_answer in ("y", "yes")
-        print()
+        console.print()
 
     include_auth = args.auth
     include_docker = args.docker
     include_test = args.test
 
-    print("Initializing full-fledged MongoDB FastAPI project structure...")
+    features = []
     if include_auth:
-        print("  [+] JWT Authentication module")
+        features.append("[green]âœ“[/green] JWT Authentication")
     if include_docker:
-        print("  [+] Docker containerization files")
+        features.append("[green]âœ“[/green] Docker containerization")
     if include_test:
-        print("  [+] Pytest test scaffolding & Ruff linter")
+        features.append("[green]âœ“[/green] Pytest & Ruff linter")
+    features.append("[green]âœ“[/green] Base project (DB + CRUD)")
+
+    console.print(Panel(
+        "\n".join(features),
+        title="[bold cyan]ðŸ“¦ Building your project[/bold cyan]",
+        border_style="cyan",
+    ))
 
     # Base directories
     src_dir = pathlib.Path("src")
@@ -278,9 +320,9 @@ def init():
             f.write('        env_file = ".env"\n')
             f.write('\n')
             f.write('settings = Settings()\n')
-        print(f"Created {config_file}")
+        console.print(f"  [green]✓[/green] Created {config_file}")
     else:
-        print(f"{config_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {config_file} already exists, skipping.")
         if include_auth:
             print("  NOTE: Please add these fields to your Settings class in config.py:")
             print('    secret_key: str = "your-super-secret-key-change-this"')
@@ -312,9 +354,9 @@ def init():
             f.write('    if db.client:\n')
             f.write('        db.client.close()\n')
             f.write('        print("Closed MongoDB connection.")\n')
-        print(f"Created {db_file}")
+        console.print(f"  [green]✓[/green] Created {db_file}")
     else:
-        print(f"{db_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {db_file} already exists, skipping.")
 
     # =============================================
     # 3. src/utils/helpers.py
@@ -331,9 +373,9 @@ def init():
             f.write('\n')
             f.write('def serialize_docs(docs):\n')
             f.write('    return [serialize_doc(doc) for doc in docs]\n')
-        print(f"Created {helpers_file}")
+        console.print(f"  [green]✓[/green] Created {helpers_file}")
     else:
-        print(f"{helpers_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {helpers_file} already exists, skipping.")
 
     # =============================================
     # 4. src/tasks/schemas.py
@@ -351,9 +393,9 @@ def init():
             f.write('\n')
             f.write('class TaskResponse(TaskCreate):\n')
             f.write('    id: str\n')
-        print(f"Created {schemas_file}")
+        console.print(f"  [green]✓[/green] Created {schemas_file}")
     else:
-        print(f"{schemas_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {schemas_file} already exists, skipping.")
 
     # =============================================
     # 5. src/tasks/service.py
@@ -386,9 +428,9 @@ def init():
             f.write('    async def delete_task(task_id: str) -> bool:\n')
             f.write('        result = await TaskService.get_collection().delete_one({"_id": ObjectId(task_id)})\n')
             f.write('        return result.deleted_count > 0\n')
-        print(f"Created {service_file}")
+        console.print(f"  [green]✓[/green] Created {service_file}")
     else:
-        print(f"{service_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {service_file} already exists, skipping.")
 
     # =============================================
     # 6. src/tasks/router.py
@@ -418,9 +460,9 @@ def init():
             f.write('    if not success:\n')
             f.write('        raise HTTPException(status_code=404, detail="Task not found")\n')
             f.write('    return {"message": "Task deleted successfully"}\n')
-        print(f"Created {router_file}")
+        console.print(f"  [green]✓[/green] Created {router_file}")
     else:
-        print(f"{router_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {router_file} already exists, skipping.")
 
     # =============================================
     # 7. main.py (conditionally includes auth router)
@@ -458,9 +500,9 @@ def init():
             f.write('\n')
             f.write('if __name__ == "__main__":\n')
             f.write('    uvicorn.run("main:app", host="0.0.0.0", port=settings.port, reload=True)\n')
-        print(f"Created {main_file}")
+        console.print(f"  [green]✓[/green] Created {main_file}")
     else:
-        print(f"{main_file} already exists, skipping.")
+        console.print(f"  [yellow]→[/yellow] {main_file} already exists, skipping.")
         if include_auth:
             print("  NOTE: Please add these lines to your main.py:")
             print('    from src.auth.router import router as auth_router')
@@ -495,7 +537,7 @@ def init():
             if "ACCESS_TOKEN_EXPIRE_MINUTES" not in env_content:
                 f.write("ACCESS_TOKEN_EXPIRE_MINUTES=30\n")
 
-    print("Updated .env file with environment variables.")
+    console.print("  [green]✓[/green] Updated .env file with environment variables.")
 
     # =============================================
     # 9. requirements.txt (creates or appends)
@@ -524,7 +566,7 @@ def init():
                 f.write("\n")
             for dep in deps_to_add:
                 f.write(dep + "\n")
-        print(f"Updated {req_file} with dependencies.")
+        console.print(f"  [green]✓[/green] Updated {req_file} with dependencies.")
     else:
         print(f"{req_file} already has all required dependencies.")
 
@@ -532,7 +574,7 @@ def init():
     # AUTH MODULE (only when --auth is passed)
     # =============================================
     if include_auth:
-        print("\n--- Setting up JWT Authentication module ---")
+        console.print("\n  [bold cyan]▸ Setting up JWT Authentication module[/bold cyan]")
         auth_dir = src_dir / "auth"
         auth_dir.mkdir(parents=True, exist_ok=True)
 
@@ -559,9 +601,9 @@ def init():
                 f.write('def verify_password(plain_password: str, hashed_password: str) -> bool:\n')
                 f.write('    """Verify a plain-text password against its hash."""\n')
                 f.write('    return pwd_context.verify(plain_password, hashed_password)\n')
-            print(f"Created {auth_utils}")
+            console.print(f"  [green]✓[/green] Created {auth_utils}")
         else:
-            print(f"{auth_utils} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {auth_utils} already exists, skipping.")
 
         # =============================================
         # A2. src/auth/schemas.py (Pydantic Models)
@@ -588,9 +630,9 @@ def init():
                 f.write('class Token(BaseModel):\n')
                 f.write('    access_token: str\n')
                 f.write('    token_type: str = "bearer"\n')
-            print(f"Created {auth_schemas}")
+            console.print(f"  [green]✓[/green] Created {auth_schemas}")
         else:
-            print(f"{auth_schemas} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {auth_schemas} already exists, skipping.")
 
         # =============================================
         # A3. src/auth/service.py (DB Logic for Users)
@@ -620,9 +662,9 @@ def init():
                 f.write('        """Find a user document by email address."""\n')
                 f.write('        user = await AuthService.get_collection().find_one({"email": email})\n')
                 f.write('        return user\n')
-            print(f"Created {auth_service}")
+            console.print(f"  [green]✓[/green] Created {auth_service}")
         else:
-            print(f"{auth_service} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {auth_service} already exists, skipping.")
 
         # =============================================
         # A4. src/auth/dependencies.py (JWT Logic)
@@ -665,9 +707,9 @@ def init():
                 f.write('    if user is None:\n')
                 f.write('        raise credentials_exception\n')
                 f.write('    return serialize_doc(user)\n')
-            print(f"Created {auth_deps_file}")
+            console.print(f"  [green]✓[/green] Created {auth_deps_file}")
         else:
-            print(f"{auth_deps_file} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {auth_deps_file} already exists, skipping.")
 
         # =============================================
         # A5. src/auth/router.py (Auth Endpoints)
@@ -707,17 +749,17 @@ def init():
                 f.write('async def get_me(current_user: dict = Depends(get_current_user)):\n')
                 f.write('    """Get the profile of the currently authenticated user."""\n')
                 f.write('    return current_user\n')
-            print(f"Created {auth_router}")
+            console.print(f"  [green]✓[/green] Created {auth_router}")
         else:
-            print(f"{auth_router} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {auth_router} already exists, skipping.")
 
-        print("\nJWT Authentication module setup complete!")
+        console.print("\n  [green]✓ JWT Authentication module ready![/green]")
 
     # =============================================
     # DOCKER MODULE (only when --docker is passed)
     # =============================================
     if include_docker:
-        print("\n--- Setting up Docker containerization ---")
+        console.print("\n  [bold cyan]▸ Setting up Docker containerization[/bold cyan]")
 
         # =============================================
         # D1. Dockerfile
@@ -748,9 +790,9 @@ def init():
                 f.write('\n')
                 f.write('# Run the application\n')
                 f.write('CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]\n')
-            print(f"Created {dockerfile}")
+            console.print(f"  [green]✓[/green] Created {dockerfile}")
         else:
-            print(f"{dockerfile} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {dockerfile} already exists, skipping.")
 
         # =============================================
         # D2. docker-compose.yml
@@ -786,9 +828,9 @@ def init():
                 f.write('\n')
                 f.write('volumes:\n')
                 f.write('  mongo_data:\n')
-            print(f"Created {compose_file}")
+            console.print(f"  [green]✓[/green] Created {compose_file}")
         else:
-            print(f"{compose_file} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {compose_file} already exists, skipping.")
 
         # =============================================
         # D3. .dockerignore
@@ -808,17 +850,17 @@ def init():
                 f.write('dist\n')
                 f.write('build\n')
                 f.write('README.md\n')
-            print(f"Created {dockerignore}")
+            console.print(f"  [green]✓[/green] Created {dockerignore}")
         else:
-            print(f"{dockerignore} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {dockerignore} already exists, skipping.")
 
-        print("\nDocker setup complete!")
+        console.print("\n  [green]✓ Docker setup ready![/green]")
 
     # =============================================
     # TEST MODULE (only when --test is passed)
     # =============================================
     if include_test:
-        print("\n--- Setting up Test scaffolding & Linter ---")
+        console.print("\n  [bold cyan]▸ Setting up Test scaffolding & Linter[/bold cyan]")
         tests_dir = pathlib.Path("tests")
         tests_dir.mkdir(parents=True, exist_ok=True)
 
@@ -830,9 +872,9 @@ def init():
             with open(pytest_ini, "w", encoding="utf-8") as f:
                 f.write('[pytest]\n')
                 f.write('asyncio_mode = auto\n')
-            print(f"Created {pytest_ini}")
+            console.print(f"  [green]✓[/green] Created {pytest_ini}")
         else:
-            print(f"{pytest_ini} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {pytest_ini} already exists, skipping.")
 
         # =============================================
         # T2. tests/__init__.py
@@ -859,9 +901,9 @@ def init():
                 f.write('    transport = ASGITransport(app=app)\n')
                 f.write('    async with AsyncClient(transport=transport, base_url="http://test") as ac:\n')
                 f.write('        yield ac\n')
-            print(f"Created {conftest_file}")
+            console.print(f"  [green]✓[/green] Created {conftest_file}")
         else:
-            print(f"{conftest_file} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {conftest_file} already exists, skipping.")
 
         # =============================================
         # T4. tests/test_tasks.py
@@ -901,9 +943,9 @@ def init():
                 f.write('    """Test deleting a task that does not exist returns 404."""\n')
                 f.write('    response = await client.delete("/tasks/000000000000000000000000")\n')
                 f.write('    assert response.status_code == 404\n')
-            print(f"Created {test_tasks}")
+            console.print(f"  [green]✓[/green] Created {test_tasks}")
         else:
-            print(f"{test_tasks} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {test_tasks} already exists, skipping.")
 
         # =============================================
         # T5. tests/test_auth.py (only with --auth)
@@ -953,9 +995,9 @@ def init():
                     f.write('    """Test that /auth/me returns 401 without a token."""\n')
                     f.write('    response = await client.get("/auth/me")\n')
                     f.write('    assert response.status_code == 401\n')
-                print(f"Created {test_auth}")
+                console.print(f"  [green]✓[/green] Created {test_auth}")
             else:
-                print(f"{test_auth} already exists, skipping.")
+                console.print(f"  [yellow]→[/yellow] {test_auth} already exists, skipping.")
 
         # =============================================
         # T6. .ruff.toml (Linter Configuration)
@@ -973,9 +1015,9 @@ def init():
                 f.write('[format]\n')
                 f.write('quote-style = "double"\n')
                 f.write('indent-style = "space"\n')
-            print(f"Created {ruff_config}")
+            console.print(f"  [green]✓[/green] Created {ruff_config}")
         else:
-            print(f"{ruff_config} already exists, skipping.")
+            console.print(f"  [yellow]→[/yellow] {ruff_config} already exists, skipping.")
 
         # Add test deps to requirements.txt
         req_file = pathlib.Path("requirements.txt")
@@ -997,45 +1039,49 @@ def init():
                 f.write("# Testing & Linting\n")
                 for dep in test_deps_to_add:
                     f.write(dep + "\n")
-            print(f"Updated {req_file} with test dependencies.")
+            console.print(f"  [green]✓[/green] Updated {req_file} with test dependencies.")
 
-        print("\nTest scaffolding & linter setup complete!")
+        console.print("\n  [green]✓ Test scaffolding & linter ready![/green]")
 
     # =============================================
     # FINAL SUMMARY
     # =============================================
-    print("\n" + "=" * 50)
-    print("  Project setup is complete!")
-    print("=" * 50)
-    print()
+    summary_lines = []
 
     if include_docker:
-        print("  Start with Docker (recommended):")
-        print("    docker-compose up --build")
-        print()
-        print("  Or run locally:")
+        summary_lines.append("[bold]Start with Docker (recommended):[/bold]")
+        summary_lines.append("  [cyan]docker-compose up --build[/cyan]")
+        summary_lines.append("")
+        summary_lines.append("[bold]Or run locally:[/bold]")
+    else:
+        summary_lines.append("[bold]Get started:[/bold]")
 
-    print("    pip install -r requirements.txt")
-    print("    python main.py")
-    print()
+    summary_lines.append("  [cyan]pip install -r requirements.txt[/cyan]")
+    summary_lines.append("  [cyan]python main.py[/cyan]")
 
     if include_auth:
-        print("  Auth endpoints:")
-        print("    POST /auth/register")
-        print("    POST /auth/login")
-        print("    GET  /auth/me (protected)")
-        print()
+        summary_lines.append("")
+        summary_lines.append("[bold]Auth endpoints:[/bold]")
+        summary_lines.append("  POST [green]/auth/register[/green]")
+        summary_lines.append("  POST [green]/auth/login[/green]")
+        summary_lines.append("  GET  [green]/auth/me[/green] [dim](protected)[/dim]")
 
     if include_test:
-        print("  Run tests:")
-        print("    pytest")
-        print()
-        print("  Run linter:")
-        print("    ruff check .")
-        print()
+        summary_lines.append("")
+        summary_lines.append("[bold]Quality tools:[/bold]")
+        summary_lines.append("  [cyan]pytest[/cyan]          Run tests")
+        summary_lines.append("  [cyan]ruff check .[/cyan]    Lint code")
 
-    print("  Swagger docs: http://localhost:8000/docs")
-    print("=" * 50)
+    summary_lines.append("")
+    summary_lines.append("[bold]Swagger docs:[/bold] [link=http://localhost:8000/docs]http://localhost:8000/docs[/link]")
+
+    console.print()
+    console.print(Panel(
+        "\n".join(summary_lines),
+        title="[bold green]âœ… Project setup complete![/bold green]",
+        border_style="green",
+        padding=(1, 2)
+    ))
 
 
 if __name__ == "__main__":
