@@ -1,29 +1,15 @@
 ```
-███████╗ █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗
-██╔════╝██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║
-█████╗  ███████║███████╗   ██║   ███████║██████╔╝██║
-██╔══╝  ██╔══██║╚════██║   ██║   ██╔══██║██╔═══╝ ██║
-██║     ██║  ██║███████║   ██║   ██║  ██║██║     ██║
-╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝
-
-███╗   ███╗ ██████╗ ███╗   ██╗ ██████╗  ██████╗ 
-████╗ ████║██╔═══██╗████╗  ██║██╔════╝ ██╔═══██╗
-██╔████╔██║██║   ██║██╔██╗ ██║██║  ███╗██║   ██║
-██║╚██╔╝██║██║   ██║██║╚██╗██║██║   ██║██║   ██║
-██║ ╚═╝ ██║╚██████╔╝██║ ╚████║╚██████╔╝╚██████╔╝
-╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ 
-
-███████╗███████╗████████╗██╗   ██╗██████╗ 
-██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗
-███████╗█████╗     ██║   ██║   ██║██████╔╝
-╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝ 
-███████║███████╗   ██║   ╚██████╔╝██║     
-╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝     
+███████╗ █████╗ ███████╗████████╗      ███╗   ███╗ ██████╗ ███╗   ██╗ ██████╗  ██████╗ 
+██╔════╝██╔══██╗██╔════╝╚══██╔══╝      ████╗ ████║██╔═══██╗████╗  ██║██╔════╝ ██╔═══██╗
+█████╗  ███████║███████╗   ██║   █████╗██╔████╔██║██║   ██║██╔██╗ ██║██║  ███╗██║   ██║
+██╔══╝  ██╔══██║╚════██║   ██║   ╚════╝██║╚██╔╝██║██║   ██║██║╚██╗██║██║   ██║██║   ██║
+██║     ██║  ██║███████║   ██║         ██║ ╚═╝ ██║╚██████╔╝██║ ╚████║╚██████╔╝╚██████╔╝
+╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝         ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝  ╚═════╝
 ```
 
 <div align="center">
 
-### Stop writing MongoDB boilerplate for FastAPI.
+Stop writing MongoDB boilerplate for FastAPI.
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Motor-47A248?style=flat&logo=mongodb)](https://motor.readthedocs.io)
@@ -43,7 +29,7 @@ Every new FastAPI + MongoDB project starts the same way — copy-pasting the sam
 
 ---
 
-## ⚡ Installation
+## Installation
 
 ```bash
 pip install fastapi-mongo-setup
@@ -51,7 +37,7 @@ pip install fastapi-mongo-setup
 
 ---
 
-## 🛠️ Usage
+## Usage
 
 ### Interactive Mode (Recommended)
 
@@ -78,7 +64,7 @@ Include Test scaffolding? (y/N): y
 
 ---
 
-## 🧩 Resource Generator
+## Resource Generator
 
 Generate complete API modules on the fly — no copy-pasting:
 
@@ -88,13 +74,7 @@ mongo-setup resource blog_posts
 mongo-setup resource orders
 ```
 
-Each command creates a full `src/<name>/` module:
-
-- **`router.py`** — Full CRUD endpoints (POST, GET, GET by ID, PUT, DELETE)
-- **`schemas.py`** — Pydantic Create, Update, and Response models
-- **`service.py`** — MongoDB CRUD operations with ObjectId serialization
-
-Then register it in `main.py`:
+Each command creates a full `src/<name>/` module with `router.py`, `schemas.py`, and `service.py`. Then register it in `main.py`:
 
 ```python
 from src.products.router import router as products_router
@@ -103,38 +83,34 @@ app.include_router(products_router)
 
 ---
 
-## 📁 Generated Project Structure
+## Generated Project Structure
 
 ```
 your-project/
-├── .env                    # Environment variables (auto-populated)
-├── requirements.txt        # All dependencies
+├── .env
+├── requirements.txt
 ├── main.py                 # FastAPI entry point with MongoDB lifespan
-├── Dockerfile              # 🐳 (--docker)
-├── docker-compose.yml      # 🐳 (--docker)
-├── .dockerignore           # 🐳 (--docker)
-├── pytest.ini              # 🧪 (--test)
-├── .ruff.toml              # 🧹 (--test)
-├── tests/                  # 🧪 (--test)
+├── Dockerfile              # (--docker)
+├── docker-compose.yml      # (--docker)
+├── pytest.ini              # (--test)
+├── .ruff.toml              # (--test)
+├── tests/                  # (--test)
 │   ├── conftest.py
 │   ├── test_tasks.py
 │   └── test_auth.py        # (--auth)
 └── src/
-    ├── config.py           # Pydantic Settings
+    ├── config.py
     ├── utils/
     │   ├── db.py           # Async Motor connection manager
     │   └── helpers.py      # ObjectId serialization helpers
     ├── tasks/              # Default CRUD module
-    │   ├── router.py
-    │   ├── schemas.py
-    │   └── service.py
-    ├── auth/               # 🔐 (--auth)
+    ├── auth/               # (--auth)
     │   ├── router.py
     │   ├── schemas.py
     │   ├── service.py
     │   ├── dependencies.py
     │   └── utils.py
-    └── <your_resource>/    # 🧩 (resource generator)
+    └── <your_resource>/    # (resource generator)
         ├── router.py
         ├── schemas.py
         └── service.py
@@ -142,9 +118,9 @@ your-project/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-**With Docker 🐳**
+**With Docker**
 
 ```bash
 mongo-setup --all
@@ -163,17 +139,17 @@ Open `http://localhost:8000/docs` — your Swagger UI is ready.
 
 ---
 
-## 🔐 Auth Endpoints (`--auth`)
+## Auth Endpoints (`--auth`)
 
-| Method | Endpoint | Description | Auth |
+| Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/auth/register` | Create a new user account | ❌ Open |
-| `POST` | `/auth/login` | Get a JWT access token | ❌ Open |
-| `GET` | `/auth/me` | Get current user profile | ✅ Bearer |
+| `POST` | `/auth/register` | Create a new user account | No |
+| `POST` | `/auth/login` | Get a JWT access token | No |
+| `GET` | `/auth/me` | Get current user profile | Yes (Bearer) |
 
 ---
 
-## 🧩 Resource Endpoints (per generated resource)
+## Resource Endpoints (per generated resource)
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -185,7 +161,7 @@ Open `http://localhost:8000/docs` — your Swagger UI is ready.
 
 ---
 
-## 🧪 Testing (`--test`)
+## Testing (`--test`)
 
 ```bash
 pytest          # Run all tests
@@ -195,7 +171,7 @@ ruff format .   # Auto-format
 
 ---
 
-## 🐳 Docker (`--docker`)
+## Docker (`--docker`)
 
 | File | Purpose |
 |---|---|
@@ -205,7 +181,6 @@ ruff format .   # Auto-format
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Found a bug or want a new feature?  
-[Open an issue](https://github.com/Souvik6222/fastapi-mongo-setup/issues) or submit a PR — contributions are welcome!
+Found a bug or want a new feature? [Open an issue](https://github.com/Souvik6222/fastapi-mongo-setup/issues) or submit a PR — contributions are welcome.
